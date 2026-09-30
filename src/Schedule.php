@@ -7,7 +7,7 @@ use omnilight\scheduling\Schedule as BaseSchedule;
 /**
  * The schedule, with the defaults every job needs already applied.
  *
- * @phpstan-import-type Job from JobConfig
+ * @phpstan-import-type JobSpec from JobConfig
  */
 class Schedule extends BaseSchedule
 {
@@ -29,7 +29,7 @@ class Schedule extends BaseSchedule
     /**
      * Jobs switched off with `enabled => false`, kept so `scheduler/list` can show them.
      *
-     * @var list<Job>
+     * @var list<JobSpec>
      */
     public array $disabled = [];
 

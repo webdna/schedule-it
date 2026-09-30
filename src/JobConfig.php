@@ -11,7 +11,7 @@ use yii\base\InvalidConfigException;
  * cannot read. A misspelt key or a bad expression is an error, never a job that silently
  * does not run: that is the failure a schedule is least likely to be caught in.
  *
- * @phpstan-type Job array{command: string, cron: string, timezone: ?string, description: ?string, enabled: bool}
+ * @phpstan-type JobSpec array{command: string, cron: string, timezone: ?string, description: ?string, enabled: bool}
  */
 final class JobConfig
 {
@@ -19,7 +19,7 @@ final class JobConfig
 
     /**
      * @param array<int|string, mixed> $jobs
-     * @return list<Job>
+     * @return list<JobSpec>
      * @throws InvalidConfigException
      */
     public static function normalise(array $jobs): array
@@ -31,9 +31,15 @@ final class JobConfig
 
             if (is_string($job)) {
                 $job = ['cron' => $job];
+            } elseif ($job instanceof Job) {
+                if ($job->getProblem() !== null) {
+                    throw new InvalidConfigException($job->getProblem());
+                }
+                // Checked below exactly as if the array had been written by hand.
+                $job = $job->toArray();
             }
             if (!is_array($job)) {
-                throw new InvalidConfigException("scheduler: {$label} must be a cron expression or an array.");
+                throw new InvalidConfigException("scheduler: {$label} must be a cron expression, an array or a Job.");
             }
 
             $unknown = array_diff(array_keys($job), self::KEYS);

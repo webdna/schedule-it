@@ -15,10 +15,15 @@
  */
 
 use craft\helpers\App;
+use webdna\scheduler\Job;
 
 return [
     'jobs' => [
-        // The command, arguments included => a cron expression (read in UTC).
+        // In words (times are read in UTC):
+        // Job::command('gc/run')->dailyAt('03:00'),
+        // Job::command('reports/send')->weekdays()->at('08:30'),
+
+        // Or the command, arguments included => a cron expression.
         // 'gc/run' => '0 3 * * *',
 
         // Or an array, to set a description, a timezone, or switch it per environment.

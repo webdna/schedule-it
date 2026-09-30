@@ -32,15 +32,27 @@ then add the one cron entry on each environment (see [Servd](#servd) for that ho
 
 ## The schedule
 
+Each job is written either in words or as a cron expression, and the two mix freely:
+
 ```php
 <?php
 // config/scheduler.php
 use craft\helpers\App;
+use webdna\scheduler\Job;
 
 return [
     'jobs' => [
-        // The console command, arguments included => a cron expression.
-        'gc/run' => '0 3 * * *',
+        // In words.
+        Job::command('gc/run')->dailyAt('03:00'),
+        Job::command('reports/send')->weekdays()->at('08:30'),
+        Job::command('feeds/sync')->everyFifteenMinutes(),
+        Job::command('my-module/reminders/send')
+            ->dailyAt('08:00')
+            ->description('Membership reminders — sends real email')
+            ->enabled(App::env('CRAFT_ENVIRONMENT') === 'production'),
+
+        // Or the console command, arguments included => a cron expression.
+        'utils/prune-revisions --max-revisions=50' => '30 2 * * 1',
         'my-module/listings/archive --dryRun=0' => '30 2 * * *',
 
         // Or an array, for a description, a timezone, or a per-environment switch.
@@ -57,6 +69,28 @@ return [
 ];
 ```
 
+### In words
+
+`Job::command('<route and arguments>')`, then methods that each set part of the expression —
+so they compose, the way Laravel's scheduler does: `->weekdays()->at('08:30')` is
+`30 8 * * 1-5`, and so is `->at('08:30')->weekdays()`. `scheduler/list` shows the expression
+each one became.
+
+| | |
+|---|---|
+| Minutes | `everyMinute()`, `everyTwoMinutes()`, `everyFiveMinutes()`, `everyTenMinutes()`, `everyFifteenMinutes()`, `everyThirtyMinutes()`, `everyNMinutes(n)` |
+| Hours | `hourly()`, `hourlyAt(minute)`, `everyTwoHours()`, `everySixHours()`, `everyNHours(n, minute = 0)` |
+| Time of day | `daily()` (midnight), `dailyAt('HH:MM')`, `at('HH:MM')` (sets only the time, so it follows a day method), `twiceDaily(1, 13, minute = 0)` |
+| Days | `weekdays()`, `weekends()`, `mondays()` … `sundays()`, `days('monday', 3, …)` (names, or 0 = Sunday) |
+| Longer | `weekly()` (Sunday midnight), `weeklyOn('tuesday', 'HH:MM')`, `monthly()`, `monthlyOn(day, 'HH:MM')`, `lastDayOfMonth('HH:MM')`, `quarterly()`, `yearly()` |
+| Raw | `cron('30 2 * * *')` — methods after it change parts of it |
+| Other | `timezone('Europe/London')`, `description('…')`, `enabled(bool or '$ENV_VAR')` |
+
+Times are 24-hour. A nonsensical schedule — `at('24:00')`, `days('mon')`,
+`everyNMinutes(0)` — is refused with a message naming the job.
+
+### As an array
+
 | Job key | |
 |---|---|
 | `cron` | Required. A five-field cron expression. |
@@ -68,6 +102,11 @@ return [
 **Anything the plugin cannot read is an error, not a skipped job.** A misspelt key
 (`'enable' => false`), a bad expression or an unknown timezone stops `scheduler/run` with a
 message and exit code 78, because the alternative is a job that silently never runs.
+
+**It never takes the site down.** `config/scheduler.php` is the plugin's settings file, so
+Craft loads it on every request, web included. A mistake in it — `at('24:00')`, even a
+misspelt method like `->daly()` — is only reported by `scheduler/run` and `scheduler/list`;
+every other request carries on. (A PHP syntax error is the exception, as in any config file.)
 
 Top-level settings:
 
@@ -162,7 +201,7 @@ If the project already maps `schedule` to `omnilight\scheduling\ScheduleControll
 
 1. Install the plugin, and move each job into `config/scheduler.php`. Chained
    `->cron()->timezone('UTC')->onOneServer()->appendOutputTo()->then(...)` lines become one
-   array entry each.
+   line each — `Job::command('gc/run')->dailyAt('03:00')`, or `'gc/run' => '0 3 * * *'`.
 2. Remove the `schedule` component and the `schedule` `controllerMap` entry, and delete
    `config/schedule.php`.
 3. Change the host's one cron entry from `schedule/run` to `scheduler/run` **in the same

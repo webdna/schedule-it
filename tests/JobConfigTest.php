@@ -4,6 +4,7 @@ namespace webdna\scheduler\tests;
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use webdna\scheduler\Job;
 use webdna\scheduler\JobConfig;
 use yii\base\InvalidConfigException;
 
@@ -45,6 +46,16 @@ class JobConfigTest extends TestCase
         $this->assertSame(['sync/run', 'sync/run'], array_column($jobs, 'command'));
     }
 
+    public function testAJobBuilderSitsBesideCronStrings(): void
+    {
+        $jobs = JobConfig::normalise([
+            'gc/run' => '0 3 * * *',
+            Job::command('reports/send')->weekdays()->at('08:30')->timezone('Europe/London')->enabled(false),
+        ]);
+
+        $this->assertSame(['command' => 'reports/send', 'cron' => '30 8 * * 1-5', 'timezone' => 'Europe/London', 'description' => null, 'enabled' => false], $jobs[1]);
+    }
+
     public function testAnEnabledStringIsReadAsABoolean(): void
     {
         $this->assertFalse(JobConfig::normalise(['a/b' => ['cron' => '* * * * *', 'enabled' => 'false']])[0]['enabled']);
@@ -65,7 +76,8 @@ class JobConfigTest extends TestCase
             'two commands' => [['gc/run' => ['command' => 'other', 'cron' => '0 3 * * *']], 'different `command`'],
             'bad timezone' => [['gc/run' => ['cron' => '0 3 * * *', 'timezone' => 'BST']], 'not a timezone identifier'],
             'bad enabled' => [['gc/run' => ['cron' => '0 3 * * *', 'enabled' => 'sometimes']], '`enabled` must be'],
-            'not a string or array' => [['gc/run' => 3], 'must be a cron expression or an array'],
+            'not a string or array' => [['gc/run' => 3], 'must be a cron expression, an array or a Job'],
+            'job under another command' => [['gc/run' => Job::command('other')->daily()], 'different `command`'],
         ];
     }
 

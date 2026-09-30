@@ -10,12 +10,11 @@ use craft\base\Model;
 class Settings extends Model
 {
     /**
-     * The jobs. Keyed by the console command (arguments included), each value either a
-     * cron expression or an array of `cron`, and optionally `timezone`, `description`
-     * and `enabled`. A list entry may instead carry the command as `command`, for the
-     * rare case of one command on two schedules. See the README.
+     * The jobs. Each is a `Job` written in words (`Job::command('gc/run')->dailyAt('03:00')`),
+     * or keyed by the console command (arguments included) with either a cron expression or
+     * an array of `cron`, and optionally `timezone`, `description` and `enabled`. See the README.
      *
-     * @var array<int|string, string|array<string, mixed>>
+     * @var array<int|string, string|array<string, mixed>|\webdna\scheduler\Job>
      */
     public array $jobs = [];
 
