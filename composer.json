@@ -1,0 +1,60 @@
+{
+    "name": "webdna/craft-scheduler",
+    "description": "The site's scheduled jobs, kept in the repository: one cron entry runs them all.",
+    "type": "craft-plugin",
+    "version": "1.0.0",
+    "keywords": ["craft", "cms", "cron", "schedule", "scheduler", "servd"],
+    "license": "MIT",
+    "support": {
+        "issues": "https://github.com/webdna/craft-scheduler/issues?state=open",
+        "source": "https://github.com/webdna/craft-scheduler",
+        "docs": "https://github.com/webdna/craft-scheduler",
+        "rss": "https://github.com/webdna/craft-scheduler/releases.atom"
+    },
+    "require": {
+        "php": ">=8.2",
+        "craftcms/cms": "^5.0",
+        "dragonmantank/cron-expression": "^3.0",
+        "omnilight/yii2-scheduling": "^1.2",
+        "symfony/process": "^5.0 || ^6.0 || ^7.0"
+    },
+    "require-dev": {
+        "craftcms/ecs": "dev-main",
+        "craftcms/phpstan": "dev-main",
+        "phpstan/phpstan": "^2.1",
+        "phpunit/phpunit": "^10.5"
+    },
+    "autoload": {
+        "psr-4": {
+            "webdna\\scheduler\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "webdna\\scheduler\\tests\\": "tests/"
+        }
+    },
+    "extra": {
+        "handle": "scheduler",
+        "name": "Scheduler",
+        "developer": "webdna",
+        "documentationUrl": "https://github.com/webdna/craft-scheduler",
+        "class": "webdna\\scheduler\\Scheduler"
+    },
+    "scripts": {
+        "check-cs": "ecs check --ansi",
+        "fix-cs": "ecs check --ansi --fix",
+        "phpstan": "phpstan --memory-limit=1G",
+        "test": "phpunit"
+    },
+    "config": {
+        "sort-packages": true,
+        "platform": {
+            "php": "8.2"
+        },
+        "allow-plugins": {
+            "yiisoft/yii2-composer": true,
+            "craftcms/plugin-installer": true
+        }
+    }
+}
