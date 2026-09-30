@@ -1,15 +1,15 @@
 {
-    "name": "webdna/craft-scheduler",
+    "name": "webdna/scheduler",
     "description": "The site's scheduled jobs, kept in the repository: one cron entry runs them all.",
     "type": "craft-plugin",
     "version": "1.0.0",
     "keywords": ["craft", "cms", "cron", "schedule", "scheduler", "servd"],
     "license": "MIT",
     "support": {
-        "issues": "https://github.com/webdna/craft-scheduler/issues?state=open",
-        "source": "https://github.com/webdna/craft-scheduler",
-        "docs": "https://github.com/webdna/craft-scheduler",
-        "rss": "https://github.com/webdna/craft-scheduler/releases.atom"
+        "issues": "https://github.com/webdna/scheduler/issues?state=open",
+        "source": "https://github.com/webdna/scheduler",
+        "docs": "https://github.com/webdna/scheduler",
+        "rss": "https://github.com/webdna/scheduler/releases.atom"
     },
     "require": {
         "php": ">=8.2",
@@ -38,7 +38,7 @@
         "handle": "scheduler",
         "name": "Scheduler",
         "developer": "webdna",
-        "documentationUrl": "https://github.com/webdna/craft-scheduler",
+        "documentationUrl": "https://github.com/webdna/scheduler",
         "class": "webdna\\scheduler\\Scheduler"
     },
     "scripts": {

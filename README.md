@@ -23,11 +23,11 @@ host can only ever run one server — see [Overlap](#overlap).
 ## Install
 
 ```
-composer require webdna/craft-scheduler
+composer require webdna/scheduler
 php craft plugin/install scheduler
 ```
 
-Copy `vendor/webdna/craft-scheduler/src/config.php` to `config/scheduler.php`, add the jobs,
+Copy `vendor/webdna/scheduler/src/config.php` to `config/scheduler.php`, add the jobs,
 then add the one cron entry on each environment (see [Servd](#servd) for that host).
 
 ## The schedule
