@@ -1,5 +1,8 @@
 # Release Notes for Scheduler
 
+## 1.0.1 30/09/26
+- `craft schedule/run` now fails with a pointer to `scheduler/run`. The underlying library registers `schedule/run` on every console app through Yii's extension bootstrap, where it ran an empty schedule and exited 0 — so a cron entry left on the old command reported success every minute while running nothing. A `schedule` command a project configured itself is left alone.
+
 ## 1.0.0 30/09/26
 - Initial release: the schedule in `config/scheduler.php`, run by one `scheduler/run` cron entry.
 - Jobs can be written in words — `Job::command('gc/run')->dailyAt('03:00')`, `->weekdays()->at('08:30')` — or as cron expressions, side by side.

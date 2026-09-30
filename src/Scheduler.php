@@ -7,6 +7,8 @@ use craft\base\Model;
 use craft\base\Plugin;
 use craft\console\Application as ConsoleApplication;
 use craft\helpers\App;
+use omnilight\scheduling\ScheduleController as LibraryScheduleController;
+use webdna\scheduler\console\controllers\MovedController;
 use webdna\scheduler\models\Settings;
 use yii\base\InvalidConfigException;
 
@@ -41,6 +43,24 @@ class Scheduler extends Plugin
         // /actions/scheduler/run is a 404 rather than a way to run the schedule over HTTP.
         if (Craft::$app instanceof ConsoleApplication) {
             $this->controllerNamespace = 'webdna\\scheduler\\console\\controllers';
+            $this->closeLibraryCommand(Craft::$app);
+        }
+    }
+
+    /**
+     * Makes `schedule/run` fail rather than succeed doing nothing.
+     *
+     * The library's own bootstrap maps `schedule` to its controller on every console app,
+     * with no schedule file, so it runs an empty schedule and exits 0 — the one outcome a
+     * host entry left on the old command must never have. Only the library's bare default
+     * is replaced; a project that configured `schedule` itself keeps it.
+     */
+    private function closeLibraryCommand(ConsoleApplication $app): void
+    {
+        $mapped = $app->controllerMap['schedule'] ?? null;
+
+        if ($mapped === null || $mapped === LibraryScheduleController::class) {
+            $app->controllerMap['schedule'] = MovedController::class;
         }
     }
 

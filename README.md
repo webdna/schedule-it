@@ -205,4 +205,6 @@ If the project already maps `schedule` to `omnilight\scheduling\ScheduleControll
 2. Remove the `schedule` component and the `schedule` `controllerMap` entry, and delete
    `config/schedule.php`.
 3. Change the host's one cron entry from `schedule/run` to `scheduler/run` **in the same
-   deploy**. Until it changes, the old entry finds no command and nothing runs.
+   deploy**. Until it changes, nothing runs — and `schedule/run` fails with a message saying
+   so, rather than succeeding. (The library registers that command on every console app by
+   itself, and left alone it would run an empty schedule and exit 0 every minute.)
