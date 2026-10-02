@@ -1,11 +1,11 @@
 <?php
 
-namespace webdna\scheduler\tests;
+namespace webdna\scheduleit\tests;
 
 use craft\mutex\Mutex as CraftMutex;
 use craft\mutex\NullMutex;
 use PHPUnit\Framework\TestCase;
-use webdna\scheduler\MutexCheck;
+use webdna\scheduleit\MutexCheck;
 use yii\mutex\FileMutex;
 use yii\mutex\Mutex;
 

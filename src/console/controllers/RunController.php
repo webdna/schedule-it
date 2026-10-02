@@ -1,12 +1,12 @@
 <?php
 
-namespace webdna\scheduler\console\controllers;
+namespace webdna\scheduleit\console\controllers;
 
 use Craft;
 use craft\console\Controller;
-use webdna\scheduler\Event;
-use webdna\scheduler\MutexCheck;
-use webdna\scheduler\Scheduler;
+use webdna\scheduleit\Event;
+use webdna\scheduleit\MutexCheck;
+use webdna\scheduleit\ScheduleIt;
 use yii\base\InvalidConfigException;
 use yii\console\ExitCode;
 use yii\helpers\Console;
@@ -14,7 +14,7 @@ use yii\helpers\Console;
 /**
  * Runs the jobs that are due this minute.
  *
- * The host's one cron entry: `* * * * * craft scheduler/run`.
+ * The host's one cron entry: `* * * * * craft schedule-it/run`.
  */
 class RunController extends Controller
 {
@@ -23,7 +23,7 @@ class RunController extends Controller
      */
     public function actionIndex(): int
     {
-        $plugin = Scheduler::getInstance();
+        $plugin = ScheduleIt::getInstance();
 
         try {
             $schedule = $plugin->buildSchedule(function(string $output): void {
@@ -37,8 +37,8 @@ class RunController extends Controller
         $driver = MutexCheck::driver(Craft::$app->has('mutex') ? Craft::$app->getMutex() : null);
         if (!$schedule->singleServer && !MutexCheck::isShared($driver)) {
             $this->stderr(sprintf(
-                "scheduler: refusing to run. The mutex driver is %s, which another server cannot see, so two servers could run the same job at once.\n"
-                . "Use a database or Redis mutex, or set 'singleServer' => true in config/scheduler.php if this host can never run two.\n",
+                "schedule-it: refusing to run. The mutex driver is %s, which another server cannot see, so two servers could run the same job at once.\n"
+                . "Use a database or Redis mutex, or set 'singleServer' => true in config/schedule-it.php if this host can never run two.\n",
                 $driver !== null ? get_class($driver) : 'missing',
             ), Console::FG_RED);
             return ExitCode::CONFIG;

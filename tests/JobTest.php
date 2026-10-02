@@ -1,12 +1,12 @@
 <?php
 
-namespace webdna\scheduler\tests;
+namespace webdna\scheduleit\tests;
 
 use Cron\CronExpression;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
-use webdna\scheduler\Job;
-use webdna\scheduler\JobConfig;
+use webdna\scheduleit\Job;
+use webdna\scheduleit\JobConfig;
 use yii\base\InvalidConfigException;
 
 class JobTest extends TestCase
@@ -96,7 +96,7 @@ class JobTest extends TestCase
     }
 
     /**
-     * config/scheduler.php is loaded on every request, web included, so building a job must
+     * config/schedule-it.php is loaded on every request, web included, so building a job must
      * never throw — a typo would take the site down. The mistake surfaces from JobConfig,
      * which only runs when the schedule is built.
      */

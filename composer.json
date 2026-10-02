@@ -1,15 +1,15 @@
 {
-    "name": "webdna/scheduler",
+    "name": "webdna/schedule-it",
     "description": "The site's scheduled jobs, kept in the repository: one cron entry runs them all.",
     "type": "craft-plugin",
-    "version": "1.0.1",
+    "version": "2.0.0",
     "keywords": ["craft", "cms", "cron", "schedule", "scheduler", "servd"],
     "license": "MIT",
     "support": {
-        "issues": "https://github.com/webdna/scheduler/issues?state=open",
-        "source": "https://github.com/webdna/scheduler",
-        "docs": "https://github.com/webdna/scheduler",
-        "rss": "https://github.com/webdna/scheduler/releases.atom"
+        "issues": "https://github.com/webdna/schedule-it/issues?state=open",
+        "source": "https://github.com/webdna/schedule-it",
+        "docs": "https://github.com/webdna/schedule-it",
+        "rss": "https://github.com/webdna/schedule-it/releases.atom"
     },
     "require": {
         "php": ">=8.2",
@@ -26,20 +26,20 @@
     },
     "autoload": {
         "psr-4": {
-            "webdna\\scheduler\\": "src/"
+            "webdna\\scheduleit\\": "src/"
         }
     },
     "autoload-dev": {
         "psr-4": {
-            "webdna\\scheduler\\tests\\": "tests/"
+            "webdna\\scheduleit\\tests\\": "tests/"
         }
     },
     "extra": {
-        "handle": "scheduler",
-        "name": "Scheduler",
+        "handle": "schedule-it",
+        "name": "Schedule-it",
         "developer": "webdna",
-        "documentationUrl": "https://github.com/webdna/scheduler",
-        "class": "webdna\\scheduler\\Scheduler"
+        "documentationUrl": "https://github.com/webdna/schedule-it",
+        "class": "webdna\\scheduleit\\ScheduleIt"
     },
     "scripts": {
         "check-cs": "ecs check --ansi",

@@ -1,6 +1,6 @@
 <?php
 
-namespace webdna\scheduler;
+namespace webdna\scheduleit;
 
 use omnilight\scheduling\Schedule as BaseSchedule;
 
@@ -27,7 +27,7 @@ class Schedule extends BaseSchedule
     public bool $singleServer = false;
 
     /**
-     * Jobs switched off with `enabled => false`, kept so `scheduler/list` can show them.
+     * Jobs switched off with `enabled => false`, kept so `schedule-it/list` can show them.
      *
      * @var list<JobSpec>
      */
@@ -71,7 +71,7 @@ class Schedule extends BaseSchedule
             // stderr lands in the log beside stdout. Without it a job's fatal leaves no trace.
             ->omitErrors(true)
             // Not onOneServer(): its guard tests the Craft wrapper rather than the driver, so
-            // it can never fire. `scheduler/run` checks the driver itself (MutexCheck) and
+            // it can never fire. `schedule-it/run` checks the driver itself (MutexCheck) and
             // refuses to start, which is the only point a refusal is any use.
             ->withoutOverlapping();
 

@@ -1,13 +1,13 @@
-# Scheduler for Craft CMS
+# Schedule-it for Craft CMS
 
 The site's scheduled jobs, kept in the repository. The host runs **one** cron entry every
 minute, and that entry works out which jobs are due and runs them:
 
 ```
-* * * * *  php craft scheduler/run
+* * * * *  php craft schedule-it/run
 ```
 
-The schedule itself is `config/scheduler.php`, so it is reviewed like any other code, it is
+The schedule itself is `config/schedule-it.php`, so it is reviewed like any other code, it is
 the same on every environment that deploys the commit, and a new environment gets every job
 the moment that one entry exists — instead of jobs living only in a hosting dashboard,
 invisible to the repository and missing wherever someone forgot to re-add them.
@@ -23,11 +23,11 @@ host can only ever run one server — see [Overlap](#overlap).
 ## Install
 
 ```
-composer require webdna/scheduler
-php craft plugin/install scheduler
+composer require webdna/schedule-it
+php craft plugin/install schedule-it
 ```
 
-Copy `vendor/webdna/scheduler/src/config.php` to `config/scheduler.php`, add the jobs,
+Copy `vendor/webdna/schedule-it/src/config.php` to `config/schedule-it.php`, add the jobs,
 then add the one cron entry on each environment (see [Servd](#servd) for that host).
 
 ## The schedule
@@ -36,9 +36,9 @@ Each job is written either in words or as a cron expression, and the two mix fre
 
 ```php
 <?php
-// config/scheduler.php
+// config/schedule-it.php
 use craft\helpers\App;
-use webdna\scheduler\Job;
+use webdna\scheduleit\Job;
 
 return [
     'jobs' => [
@@ -73,7 +73,7 @@ return [
 
 `Job::command('<route and arguments>')`, then methods that each set part of the expression —
 so they compose, the way Laravel's scheduler does: `->weekdays()->at('08:30')` is
-`30 8 * * 1-5`, and so is `->at('08:30')->weekdays()`. `scheduler/list` shows the expression
+`30 8 * * 1-5`, and so is `->at('08:30')->weekdays()`. `schedule-it/list` shows the expression
 each one became.
 
 | | |
@@ -100,12 +100,12 @@ Times are 24-hour. A nonsensical schedule — `at('24:00')`, `days('mon')`,
 | `command` | Only for list entries; otherwise the key is the command. |
 
 **Anything the plugin cannot read is an error, not a skipped job.** A misspelt key
-(`'enable' => false`), a bad expression or an unknown timezone stops `scheduler/run` with a
+(`'enable' => false`), a bad expression or an unknown timezone stops `schedule-it/run` with a
 message and exit code 78, because the alternative is a job that silently never runs.
 
-**It never takes the site down.** `config/scheduler.php` is the plugin's settings file, so
+**It never takes the site down.** `config/schedule-it.php` is the plugin's settings file, so
 Craft loads it on every request, web included. A mistake in it — `at('24:00')`, even a
-misspelt method like `->daly()` — is only reported by `scheduler/run` and `scheduler/list`;
+misspelt method like `->daly()` — is only reported by `schedule-it/run` and `schedule-it/list`;
 every other request carries on. (A PHP syntax error is the exception, as in any config file.)
 
 Top-level settings:
@@ -113,9 +113,9 @@ Top-level settings:
 | Setting | Default | |
 |---|---|---|
 | `timezone` | `'UTC'` | Keep UTC. Otherwise expressions are read in PHP's timezone, which Craft sets from the site's, and every job moves an hour twice a year. |
-| `logFile` | `storage/logs/scheduler.log` | Aliases and env vars are parsed. |
+| `logFile` | `storage/logs/schedule-it.log` | Aliases and env vars are parsed. |
 | `singleServer` | `false` | See [Overlap](#overlap). |
-| `configure` | `null` | `function (\webdna\scheduler\Schedule $schedule) {}` — for anything the array cannot say. `$schedule->job('a/b', '0 * * * *')->weekdays()` gets every default below; the library's `call()`, `when()`, `skip()` and `thenPing()` are all there. |
+| `configure` | `null` | `function (\webdna\scheduleit\Schedule $schedule) {}` — for anything the array cannot say. `$schedule->job('a/b', '0 * * * *')->weekdays()` gets every default below; the library's `call()`, `when()`, `skip()` and `thenPing()` are all there. |
 
 **Never schedule `queue/run` or `queue/listen`.** The host or Craft already runs the queue,
 and a second consumer runs jobs twice or takes them mid-flight. `queue/listen` never exits,
@@ -123,7 +123,7 @@ so it would also block every job after it. Leave `db/backup` to the host's backu
 
 ## Commands
 
-**`php craft scheduler/run`** — runs every job due this minute, one after another, then
+**`php craft schedule-it/run`** — runs every job due this minute, one after another, then
 exits non-zero if any of them failed. Each job is reported as it ends:
 
 ```
@@ -135,7 +135,7 @@ Running scheduled command: gc/run
 Most minutes nothing is due, and it prints `No scheduled commands are ready to run.` — that
 is evidence the schedule loaded, not a problem.
 
-**`php craft scheduler/list`** — every job, its expression, timezone and next due time, the
+**`php craft schedule-it/list`** — every job, its expression, timezone and next due time, the
 disabled ones, and whether the mutex would let `run` start. Runs nothing.
 
 ## What it does for you
@@ -152,7 +152,7 @@ Each of these is a way the library, used directly under Craft, fails without say
 - **It reports exit codes.** The library discards them, so its runner exits 0 whatever
   happened.
 - **It refuses a lock other servers cannot see.** See [Overlap](#overlap).
-- **It is console-only.** The web app has no route to the runner; `/actions/scheduler/run` is
+- **It is console-only.** The web app has no route to the runner; `/actions/schedule-it/run` is
   a 404.
 
 ## Overlap
@@ -164,14 +164,14 @@ several app servers, only one of them runs it.
 That only works if the lock is somewhere every server can see. Craft 5's default is the
 database (`yii\mutex\MysqlMutex` / `PgsqlMutex`), which is. A `FileMutex` is not: it lives on
 one server's disk. The library's own guard tests Craft's wrapper component rather than the
-driver inside it, so it never catches this; the plugin checks the driver, and `scheduler/run`
+driver inside it, so it never catches this; the plugin checks the driver, and `schedule-it/run`
 refuses to start on a file (or null) mutex. On a host that can never run two servers, set
 `'singleServer' => true` to run anyway.
 
 ## Servd
 
 1. Servd dashboard → the project → the environment → **Scheduled Tasks**.
-2. Add **one** task: `php craft scheduler/run`, every minute (`* * * * *`). Match the form
+2. Add **one** task: `php craft schedule-it/run`, every minute (`* * * * *`). Match the form
    Servd's existing tasks use.
 3. Repeat per environment — **environments do not share tasks**. Nothing else is added there,
    ever; the jobs come from the repository.
@@ -182,7 +182,7 @@ Two things specific to Servd:
 - **The log file does not survive.** A scheduled task runs in Servd's task runner, not the web
   container, with a filesystem that goes when the task ends; Servd collects stdout only. That
   is why the runner replays each job's output: read it in **Servd's log for the task**, and do
-  not look for `storage/logs/scheduler.log` there. Locally the file is the thing to read.
+  not look for `storage/logs/schedule-it.log` there. Locally the file is the thing to read.
 
 **Think about staging before adding its task.** Once the entry exists, every job runs there,
 including any that send email. Point staging's mailer somewhere harmless, give those jobs an
@@ -191,20 +191,46 @@ including any that send email. Point staging's mailer somewhere harmless, give t
 ## Local
 
 There is no local cron under DDEV. Run a job directly with `ddev craft <command>`, or the
-runner itself with `ddev craft scheduler/run`, which runs whatever is due at that minute in
-UTC. `ddev craft scheduler/list` shows when that is.
+runner itself with `ddev craft schedule-it/run`, which runs whatever is due at that minute in
+UTC. `ddev craft schedule-it/list` shows when that is.
 
 ## Moving from a hand-wired `yii2-scheduling` setup
 
 If the project already maps `schedule` to `omnilight\scheduling\ScheduleController` in
 `config/app.console.php` with a `config/schedule.php` file:
 
-1. Install the plugin, and move each job into `config/scheduler.php`. Chained
+1. Install the plugin, and move each job into `config/schedule-it.php`. Chained
    `->cron()->timezone('UTC')->onOneServer()->appendOutputTo()->then(...)` lines become one
    line each — `Job::command('gc/run')->dailyAt('03:00')`, or `'gc/run' => '0 3 * * *'`.
 2. Remove the `schedule` component and the `schedule` `controllerMap` entry, and delete
    `config/schedule.php`.
-3. Change the host's one cron entry from `schedule/run` to `scheduler/run` **in the same
+3. Change the host's one cron entry from `schedule/run` to `schedule-it/run` **in the same
    deploy**. Until it changes, nothing runs — and `schedule/run` fails with a message saying
    so, rather than succeeding. (The library registers that command on every console app by
    itself, and left alone it would run an empty schedule and exit 0 every minute.)
+
+## Moving from `webdna/scheduler`
+
+Before 2.0.0 this plugin was `webdna/scheduler`, handle `scheduler`. It was renamed because
+the Plugin Store already lists Verbb's Scheduler under that handle, and Craft's update check
+matches plugins by handle — so the control panel offered every install Verbb's updates.
+
+The plugin keeps nothing in the database, so the move is the old one out and the new one in:
+
+```
+php craft plugin/uninstall scheduler
+composer remove webdna/scheduler
+composer require webdna/schedule-it
+php craft plugin/install schedule-it
+git mv config/scheduler.php config/schedule-it.php
+```
+
+1. In `config/schedule-it.php`, change `use webdna\scheduler\Job;` to `use webdna\scheduleit\Job;`.
+2. Change the host's one cron entry from `scheduler/run` to `schedule-it/run` **in the same
+   deploy**. Until it changes nothing runs, and `scheduler/run` fails with a message saying so.
+3. Commit `composer.json`, `composer.lock`, the config file and `config/project/`. On each
+   environment, applying project config uninstalls `scheduler` and installs `schedule-it`
+   together; nothing else needs running there.
+
+A schedule left in `config/scheduler.php` is never read by the new plugin, so `schedule-it/run`
+and `schedule-it/list` refuse to start until it is renamed, rather than running nothing.

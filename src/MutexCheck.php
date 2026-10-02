@@ -1,6 +1,6 @@
 <?php
 
-namespace webdna\scheduler;
+namespace webdna\scheduleit;
 
 use craft\mutex\Mutex as CraftMutex;
 use craft\mutex\NullMutex;

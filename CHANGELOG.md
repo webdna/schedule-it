@@ -1,4 +1,10 @@
-# Release Notes for Scheduler
+# Release Notes for Schedule-it
+
+## 2.0.0 02/10/26
+- Renamed from `webdna/scheduler` (handle `scheduler`) to `webdna/schedule-it` (handle `schedule-it`). The Plugin Store already lists Verbb's Scheduler under the handle `scheduler`, and Craft's update check matches plugins by handle, so every install was offered that plugin's updates in the control panel.
+- The schedule moves to `config/schedule-it.php`, the commands to `schedule-it/run` and `schedule-it/list`, the namespace to `webdna\\scheduleit`, and the default log file to `storage/logs/schedule-it.log`. The plugin keeps nothing in the database, so moving is uninstall the old, install the new — see the README.
+- `schedule-it/run` and `schedule-it/list` refuse to start while the schedule is still in `config/scheduler.php` and `config/schedule-it.php` does not exist, rather than running nothing.
+- `craft scheduler/run` fails with a pointer to `schedule-it/run` once the old plugin is gone.
 
 ## 1.0.1 30/09/26
 - `craft schedule/run` now fails with a pointer to `scheduler/run`. The underlying library registers `schedule/run` on every console app through Yii's extension bootstrap, where it ran an empty schedule and exited 0 — so a cron entry left on the old command reported success every minute while running nothing. A `schedule` command a project configured itself is left alone.

@@ -1,11 +1,11 @@
 <?php
 
-namespace webdna\scheduler\tests;
+namespace webdna\scheduleit\tests;
 
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
-use webdna\scheduler\Job;
-use webdna\scheduler\JobConfig;
+use webdna\scheduleit\Job;
+use webdna\scheduleit\JobConfig;
 use yii\base\InvalidConfigException;
 
 class JobConfigTest extends TestCase
