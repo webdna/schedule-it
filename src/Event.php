@@ -1,6 +1,6 @@
 <?php
 
-namespace webdna\scheduler;
+namespace webdna\scheduleit;
 
 use Craft;
 use omnilight\scheduling\Event as BaseEvent;

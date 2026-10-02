@@ -1,6 +1,6 @@
 <?php
 
-namespace webdna\scheduler;
+namespace webdna\scheduleit;
 
 use Craft;
 use craft\base\Model;
@@ -8,23 +8,23 @@ use craft\base\Plugin;
 use craft\console\Application as ConsoleApplication;
 use craft\helpers\App;
 use omnilight\scheduling\ScheduleController as LibraryScheduleController;
-use webdna\scheduler\console\controllers\MovedController;
-use webdna\scheduler\models\Settings;
+use webdna\scheduleit\console\controllers\MovedController;
+use webdna\scheduleit\models\Settings;
 use yii\base\InvalidConfigException;
 
 /**
- * Scheduler plugin
+ * Schedule-it plugin
  *
- * The schedule is `config/scheduler.php`. The host runs one entry every minute,
- * `craft scheduler/run`, and that works out which jobs are due and runs them.
+ * The schedule is `config/schedule-it.php`. The host runs one entry every minute,
+ * `craft schedule-it/run`, and that works out which jobs are due and runs them.
  *
- * @method static Scheduler getInstance()
+ * @method static ScheduleIt getInstance()
  * @method Settings getSettings()
  * @author webdna
  * @copyright webdna
  * @license MIT
  */
-class Scheduler extends Plugin
+class ScheduleIt extends Plugin
 {
     public string $schemaVersion = '1.0.0';
 
@@ -35,15 +35,41 @@ class Scheduler extends Plugin
      */
     public bool $hasCpSettings = false;
 
+    /**
+     * The handle this plugin had until 2.0.0. It was renamed because the Plugin Store
+     * already has a `scheduler` (Verbb's), and Craft's update check matches plugins by
+     * handle, so every install was offered that plugin's updates.
+     */
+    public const RENAMED_FROM = 'scheduler';
+
     public function init(): void
     {
         parent::init();
 
         // Console only. The web app gets no controllers at all, so
-        // /actions/scheduler/run is a 404 rather than a way to run the schedule over HTTP.
+        // /actions/schedule-it/run is a 404 rather than a way to run the schedule over HTTP.
         if (Craft::$app instanceof ConsoleApplication) {
-            $this->controllerNamespace = 'webdna\\scheduler\\console\\controllers';
+            $this->controllerNamespace = 'webdna\\scheduleit\\console\\controllers';
             $this->closeLibraryCommand(Craft::$app);
+            $this->closeRenamedCommand(Craft::$app);
+        }
+    }
+
+    /**
+     * Makes `scheduler/run` — this plugin's command before it was renamed — say where it went.
+     *
+     * Left unmapped, a host entry still on it fails as an unknown command, which is loud but
+     * says nothing useful. Never while the old `scheduler` plugin is still installed: a
+     * controller map entry outranks a module, so it would take that plugin's command away.
+     */
+    private function closeRenamedCommand(ConsoleApplication $app): void
+    {
+        if (
+            !isset($app->controllerMap[self::RENAMED_FROM])
+            && !$app->hasModule(self::RENAMED_FROM)
+            && !$app->getPlugins()->isPluginInstalled(self::RENAMED_FROM)
+        ) {
+            $app->controllerMap[self::RENAMED_FROM] = MovedController::class;
         }
     }
 
@@ -65,13 +91,15 @@ class Scheduler extends Plugin
     }
 
     /**
-     * Builds the schedule from `config/scheduler.php`.
+     * Builds the schedule from `config/schedule-it.php`.
      *
      * @param callable(string): void $write where each job's output is replayed once it finishes
      * @throws InvalidConfigException when a job, the timezone or the craft script is invalid
      */
     public function buildSchedule(callable $write): Schedule
     {
+        $this->refuseStrandedConfig();
+
         $settings = $this->getSettings();
 
         $timezone = JobConfig::timezone($settings->timezone, 'timezone');
@@ -103,12 +131,35 @@ class Scheduler extends Plugin
 
         if ($settings->configure !== null) {
             if (!is_callable($settings->configure)) {
-                throw new InvalidConfigException('scheduler: `configure` must be a callable that takes the Schedule.');
+                throw new InvalidConfigException('schedule-it: `configure` must be a callable that takes the Schedule.');
             }
             call_user_func($settings->configure, $schedule);
         }
 
         return $schedule;
+    }
+
+    /**
+     * Refuses a schedule left in the file the plugin read before it was renamed.
+     *
+     * Craft reads a plugin's settings from `config/<handle>.php`, so after the rename
+     * `config/scheduler.php` is read by nothing. Without this, every job in it would
+     * silently stop and the runner would report "no commands ready" every minute.
+     *
+     * @throws InvalidConfigException
+     */
+    private function refuseStrandedConfig(): void
+    {
+        $configPath = Craft::$app->getPath()->getConfigPath();
+        $old = $configPath . DIRECTORY_SEPARATOR . self::RENAMED_FROM . '.php';
+        $new = $configPath . DIRECTORY_SEPARATOR . $this->handle . '.php';
+
+        if (is_file($old) && !is_file($new)) {
+            throw new InvalidConfigException(
+                "schedule-it: the schedule is still in config/scheduler.php, which nothing reads since the plugin was renamed. Rename it to config/schedule-it.php "
+                . "and change `use webdna\\scheduler\\Job;` to `use webdna\\scheduleit\\Job;`.",
+            );
+        }
     }
 
     /**
@@ -119,7 +170,7 @@ class Scheduler extends Plugin
         $logFile = $this->getSettings()->logFile;
 
         if ($logFile === null || $logFile === '') {
-            return Craft::$app->getPath()->getLogPath() . '/scheduler.log';
+            return Craft::$app->getPath()->getLogPath() . '/schedule-it.log';
         }
 
         return Craft::getAlias(App::parseEnv($logFile));
@@ -139,7 +190,7 @@ class Scheduler extends Plugin
         $script = Craft::getAlias('@root') . DIRECTORY_SEPARATOR . 'craft';
 
         if (!is_file($script)) {
-            throw new InvalidConfigException("scheduler: no craft script at {$script}, so no job could run.");
+            throw new InvalidConfigException("schedule-it: no craft script at {$script}, so no job could run.");
         }
 
         return $script;

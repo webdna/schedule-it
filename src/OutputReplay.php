@@ -1,6 +1,6 @@
 <?php
 
-namespace webdna\scheduler;
+namespace webdna\scheduleit;
 
 /**
  * Replays what each job appended to the log file, once the job has finished.

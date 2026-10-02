@@ -1,13 +1,13 @@
 <?php
 
-namespace webdna\scheduler\console\controllers;
+namespace webdna\scheduleit\console\controllers;
 
 use Craft;
 use craft\console\Controller;
 use Cron\CronExpression;
-use webdna\scheduler\Event;
-use webdna\scheduler\MutexCheck;
-use webdna\scheduler\Scheduler;
+use webdna\scheduleit\Event;
+use webdna\scheduleit\MutexCheck;
+use webdna\scheduleit\ScheduleIt;
 use yii\base\InvalidConfigException;
 use yii\console\ExitCode;
 use yii\helpers\Console;
@@ -22,7 +22,7 @@ class ListController extends Controller
      */
     public function actionIndex(): int
     {
-        $plugin = Scheduler::getInstance();
+        $plugin = ScheduleIt::getInstance();
 
         try {
             $schedule = $plugin->buildSchedule(static function(): void {
@@ -42,7 +42,7 @@ class ListController extends Controller
         if (!$shared) {
             $schedule->singleServer
                 ? $this->stdout("Running anyway: singleServer is true.\n", Console::FG_YELLOW)
-                : $this->stdout("scheduler/run will refuse to start until the mutex is shared or singleServer is set.\n", Console::FG_RED);
+                : $this->stdout("schedule-it/run will refuse to start until the mutex is shared or singleServer is set.\n", Console::FG_RED);
         }
         $this->stdout(PHP_EOL);
 
@@ -58,7 +58,7 @@ class ListController extends Controller
         }
 
         if ($rows === []) {
-            $this->stdout("No jobs. Add them to config/scheduler.php.\n");
+            $this->stdout("No jobs. Add them to config/schedule-it.php.\n");
             return ExitCode::OK;
         }
 

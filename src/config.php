@@ -1,11 +1,11 @@
 <?php
 /**
- * Scheduler config.php
+ * Schedule-it config.php
  *
- * Copy this file to your project's `config/` folder as `scheduler.php`. That copy IS the
+ * Copy this file to your project's `config/` folder as `schedule-it.php`. That copy IS the
  * schedule: the host runs one entry every minute —
  *
- *     * * * * *  php craft scheduler/run
+ *     * * * * *  php craft schedule-it/run
  *
  * — and it works out which of these jobs are due and runs them.
  *
@@ -15,7 +15,7 @@
  */
 
 use craft\helpers\App;
-use webdna\scheduler\Job;
+use webdna\scheduleit\Job;
 
 return [
     'jobs' => [
@@ -35,7 +35,7 @@ return [
     ],
 
     // 'timezone' => 'UTC',
-    // 'logFile' => '@storage/logs/scheduler.log',
+    // 'logFile' => '@storage/logs/schedule-it.log',
 
     // Only on a host that can never run two app servers; see the README.
     // 'singleServer' => false,

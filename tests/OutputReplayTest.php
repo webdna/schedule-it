@@ -1,9 +1,9 @@
 <?php
 
-namespace webdna\scheduler\tests;
+namespace webdna\scheduleit\tests;
 
 use PHPUnit\Framework\TestCase;
-use webdna\scheduler\OutputReplay;
+use webdna\scheduleit\OutputReplay;
 
 class OutputReplayTest extends TestCase
 {
@@ -14,7 +14,7 @@ class OutputReplayTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->file = tempnam(sys_get_temp_dir(), 'scheduler');
+        $this->file = tempnam(sys_get_temp_dir(), 'schedule-it');
         $this->written = [];
     }
 

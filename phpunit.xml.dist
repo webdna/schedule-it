@@ -4,7 +4,7 @@
          bootstrap="tests/bootstrap.php"
          colors="true">
     <testsuites>
-        <testsuite name="scheduler">
+        <testsuite name="schedule-it">
             <directory>tests</directory>
         </testsuite>
     </testsuites>

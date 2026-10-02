@@ -1,13 +1,13 @@
 <?php
 
-namespace webdna\scheduler;
+namespace webdna\scheduleit;
 
 use craft\helpers\App;
 use Cron\CronExpression;
 use yii\base\InvalidConfigException;
 
 /**
- * Reads the `jobs` array of `config/scheduler.php` into one shape, and refuses anything it
+ * Reads the `jobs` array of `config/schedule-it.php` into one shape, and refuses anything it
  * cannot read. A misspelt key or a bad expression is an error, never a job that silently
  * does not run: that is the failure a schedule is least likely to be caught in.
  *
@@ -39,13 +39,13 @@ final class JobConfig
                 $job = $job->toArray();
             }
             if (!is_array($job)) {
-                throw new InvalidConfigException("scheduler: {$label} must be a cron expression, an array or a Job.");
+                throw new InvalidConfigException("schedule-it: {$label} must be a cron expression, an array or a Job.");
             }
 
             $unknown = array_diff(array_keys($job), self::KEYS);
             if ($unknown !== []) {
                 throw new InvalidConfigException(sprintf(
-                    'scheduler: %s has unknown key%s %s (allowed: %s).',
+                    'schedule-it: %s has unknown key%s %s (allowed: %s).',
                     $label,
                     count($unknown) > 1 ? 's' : '',
                     implode(', ', $unknown),
@@ -55,28 +55,28 @@ final class JobConfig
 
             if (is_string($key)) {
                 if (isset($job['command']) && $job['command'] !== $key) {
-                    throw new InvalidConfigException("scheduler: {$label} also sets a different `command`; use one or the other.");
+                    throw new InvalidConfigException("schedule-it: {$label} also sets a different `command`; use one or the other.");
                 }
                 $command = $key;
             } else {
                 $command = $job['command'] ?? null;
             }
             if (!is_string($command) || trim($command) === '') {
-                throw new InvalidConfigException("scheduler: {$label} has no command. Key the job by its command, or set `command`.");
+                throw new InvalidConfigException("schedule-it: {$label} has no command. Key the job by its command, or set `command`.");
             }
             $command = trim($command);
             $label = "job “{$command}”";
 
             $cron = $job['cron'] ?? null;
             if (!is_string($cron) || !CronExpression::isValidExpression($cron)) {
-                throw new InvalidConfigException("scheduler: {$label} needs a valid cron expression in `cron`, e.g. '0 3 * * *'.");
+                throw new InvalidConfigException("schedule-it: {$label} needs a valid cron expression in `cron`, e.g. '0 3 * * *'.");
             }
 
             $timezone = isset($job['timezone']) ? self::timezone($job['timezone'], "{$label} `timezone`") : null;
 
             $description = $job['description'] ?? null;
             if ($description !== null && !is_string($description)) {
-                throw new InvalidConfigException("scheduler: {$label} `description` must be a string.");
+                throw new InvalidConfigException("schedule-it: {$label} `description` must be a string.");
             }
 
             $normalised[] = [
@@ -98,7 +98,7 @@ final class JobConfig
     {
         if (!is_string($timezone) || !in_array($timezone, \DateTimeZone::listIdentifiers(), true)) {
             $shown = is_string($timezone) ? "'{$timezone}'" : get_debug_type($timezone);
-            throw new InvalidConfigException("scheduler: {$label} {$shown} is not a timezone identifier, e.g. 'UTC' or 'Europe/London'.");
+            throw new InvalidConfigException("schedule-it: {$label} {$shown} is not a timezone identifier, e.g. 'UTC' or 'Europe/London'.");
         }
 
         return $timezone;
@@ -118,7 +118,7 @@ final class JobConfig
 
         $parsed = is_string($enabled) ? App::parseBooleanEnv($enabled) : null;
         if ($parsed === null) {
-            throw new InvalidConfigException("scheduler: {$label} `enabled` must be a bool or an env var that reads as one.");
+            throw new InvalidConfigException("schedule-it: {$label} `enabled` must be a bool or an env var that reads as one.");
         }
 
         return $parsed;

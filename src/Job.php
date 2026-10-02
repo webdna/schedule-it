@@ -1,6 +1,6 @@
 <?php
 
-namespace webdna\scheduler;
+namespace webdna\scheduleit;
 
 use Cron\CronExpression;
 
@@ -323,7 +323,7 @@ final class Job
     }
 
     /**
-     * The job in the array form `config/scheduler.php` also accepts, for JobConfig to check.
+     * The job in the array form `config/schedule-it.php` also accepts, for JobConfig to check.
      *
      * @return array<string, mixed>
      */
@@ -386,14 +386,14 @@ final class Job
     /**
      * Records the first thing wrong with the job, and never throws.
      *
-     * config/scheduler.php is loaded on EVERY request, web included, because it is the
+     * config/schedule-it.php is loaded on EVERY request, web included, because it is the
      * plugin's settings file — so an exception here would take the whole site down over a
      * typo in one job. JobConfig raises it instead, when the schedule is built, which only
-     * `scheduler/run` and `scheduler/list` do.
+     * `schedule-it/run` and `schedule-it/list` do.
      */
     private function fail(string $message): self
     {
-        $this->problem ??= "scheduler: job “{$this->command}”: {$message}";
+        $this->problem ??= "schedule-it: job “{$this->command}”: {$message}";
 
         return $this;
     }

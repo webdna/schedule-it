@@ -1,11 +1,11 @@
 <?php
 
-namespace webdna\scheduler\models;
+namespace webdna\scheduleit\models;
 
 use craft\base\Model;
 
 /**
- * Scheduler settings, set in `config/scheduler.php` — never in the CP.
+ * Schedule-it settings, set in `config/schedule-it.php` — never in the CP.
  */
 class Settings extends Model
 {
@@ -14,7 +14,7 @@ class Settings extends Model
      * or keyed by the console command (arguments included) with either a cron expression or
      * an array of `cron`, and optionally `timezone`, `description` and `enabled`. See the README.
      *
-     * @var array<int|string, string|array<string, mixed>|\webdna\scheduler\Job>
+     * @var array<int|string, string|array<string, mixed>|\webdna\scheduleit\Job>
      */
     public array $jobs = [];
 
@@ -28,7 +28,7 @@ class Settings extends Model
 
     /**
      * Where job output is appended. Aliases and env vars are parsed. Defaults to
-     * `storage/logs/scheduler.log`.
+     * `storage/logs/schedule-it.log`.
      */
     public ?string $logFile = null;
 
@@ -40,7 +40,7 @@ class Settings extends Model
     public bool $singleServer = false;
 
     /**
-     * Optional: `function (\webdna\scheduler\Schedule $schedule) {}`, called after the jobs
+     * Optional: `function (\webdna\scheduleit\Schedule $schedule) {}`, called after the jobs
      * are added, for anything the array cannot say (`->weekdays()`, `->when()`, callbacks).
      *
      * Typed mixed rather than callable because it arrives from a config file; the plugin
