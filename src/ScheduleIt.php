@@ -93,7 +93,7 @@ class ScheduleIt extends Plugin
     /**
      * Builds the schedule from `config/schedule-it.php`.
      *
-     * @param callable(string): void $write where each job's output is replayed once it finishes
+     * @param callable(string): void $write where each job's output is echoed as it is written
      * @throws InvalidConfigException when a job, the timezone or the craft script is invalid
      */
     public function buildSchedule(callable $write): Schedule
@@ -110,8 +110,9 @@ class ScheduleIt extends Plugin
             'timezone' => $timezone,
             'logFile' => $this->logFile(),
             'singleServer' => $settings->singleServer,
+            'cache' => Craft::$app->getCache(),
         ]);
-        $schedule->startReplay($write);
+        $schedule->echoOutputTo($write);
 
         foreach ($jobs as $job) {
             if (!$job['enabled']) {
@@ -119,7 +120,10 @@ class ScheduleIt extends Plugin
                 continue;
             }
 
-            $event = $schedule->job($job['command'], $job['cron']);
+            $event = $job['shell']
+                ? $schedule->execJob($job['command'], $job['cron'])
+                : $schedule->job($job['command'], $job['cron']);
+            $event->background($job['background']);
 
             if ($job['timezone'] !== null) {
                 $event->timezone($job['timezone']);

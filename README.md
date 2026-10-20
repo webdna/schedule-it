@@ -46,6 +46,8 @@ return [
         Job::command('gc/run')->dailyAt('03:00'),
         Job::command('reports/send')->weekdays()->at('08:30'),
         Job::command('feeds/sync')->everyFifteenMinutes(),
+        Job::command('my-module/products/import')->hourly()->background(),
+        Job::exec('bin/geoip-update.sh')->weekly(),
         Job::command('my-module/reminders/send')
             ->dailyAt('08:00')
             ->description('Membership reminders — sends real email')
@@ -65,6 +67,9 @@ return [
         // One command on two schedules: list entries that name their command.
         ['command' => 'feeds/sync', 'cron' => '0 6 * * 1-5'],
         ['command' => 'feeds/sync', 'cron' => '0 12 * * 6,0'],
+
+        // A shell command is a list entry with `exec`.
+        ['exec' => 'bin/rotate-backups.sh', 'cron' => '0 4 * * *'],
     ],
 ];
 ```
@@ -84,7 +89,12 @@ each one became.
 | Days | `weekdays()`, `weekends()`, `mondays()` … `sundays()`, `days('monday', 3, …)` (names, or 0 = Sunday) |
 | Longer | `weekly()` (Sunday midnight), `weeklyOn('tuesday', 'HH:MM')`, `monthly()`, `monthlyOn(day, 'HH:MM')`, `lastDayOfMonth('HH:MM')`, `quarterly()`, `yearly()` |
 | Raw | `cron('30 2 * * *')` — methods after it change parts of it |
-| Other | `timezone('Europe/London')`, `description('…')`, `enabled(bool or '$ENV_VAR')` |
+| Other | `timezone('Europe/London')`, `description('…')`, `enabled(bool or '$ENV_VAR')`, `background()` (see [Long jobs](#long-jobs)) |
+
+`Job::exec('<shell line>')` starts a job that is not a Craft command — a script, a binary, a
+pipeline — and takes the same methods. It runs through the shell from the project root, and
+its output, lock and exit code are handled exactly as a console command's. The whole line is
+logged, `a && b` included.
 
 Times are 24-hour. A nonsensical schedule — `at('24:00')`, `days('mon')`,
 `everyNMinutes(0)` — is refused with a message naming the job.
@@ -97,7 +107,9 @@ Times are 24-hour. A nonsensical schedule — `at('24:00')`, `days('mon')`,
 | `timezone` | The timezone `cron` is read in. Defaults to the schedule's (`UTC`). |
 | `description` | What `list` and the run output call the job. Defaults to the command. |
 | `enabled` | `true`, `false`, or a string Craft reads as a boolean (`'$SCHEDULE_REMINDERS'`). A disabled job is shown by `list` and never run. |
+| `background` | `true` to run the job as its own process; see [Long jobs](#long-jobs). The same values as `enabled`. |
 | `command` | Only for list entries; otherwise the key is the command. |
+| `exec` | A shell command, in place of `command`, in a list entry. |
 
 **Anything the plugin cannot read is an error, not a skipped job.** A misspelt key
 (`'enable' => false`), a bad expression or an unknown timezone stops `schedule-it/run` with a
@@ -112,10 +124,10 @@ Top-level settings:
 
 | Setting | Default | |
 |---|---|---|
-| `timezone` | `'UTC'` | Keep UTC. Otherwise expressions are read in PHP's timezone, which Craft sets from the site's, and every job moves an hour twice a year. |
+| `timezone` | `'UTC'` | Keep UTC: in a timezone with summer time, a job at a time of day moves an hour against UTC twice a year, and a job at 01:30 on the night the clocks change runs twice or not at all. `schedule-it/list` shows each job's next run in Craft's timezone beside its own, so `dailyAt('07:00')` reads as 08:00 or 09:00 in Zagreb. Set it, or a job's own `timezone`, when a job must follow the local clock. |
 | `logFile` | `storage/logs/schedule-it.log` | Aliases and env vars are parsed. |
 | `singleServer` | `false` | See [Overlap](#overlap). |
-| `configure` | `null` | `function (\webdna\scheduleit\Schedule $schedule) {}` — for anything the array cannot say. `$schedule->job('a/b', '0 * * * *')->weekdays()` gets every default below; the library's `call()`, `when()`, `skip()` and `thenPing()` are all there. |
+| `configure` | `null` | `function (\webdna\scheduleit\Schedule $schedule) {}` — for anything the array cannot say. `$schedule->job('a/b', '0 * * * *')->weekdays()` and `$schedule->execJob('bin/x.sh', '0 * * * *')` get every default below; the library's `call()`, `when()`, `skip()` and `thenPing()` are all there. |
 
 **Never schedule `queue/run` or `queue/listen`.** The host or Craft already runs the queue,
 and a second consumer runs jobs twice or takes them mid-flight. `queue/listen` never exits,
@@ -130,13 +142,21 @@ exits non-zero if any of them failed. Each job is reported as it ends:
 Running scheduled command: gc/run
 …the job's own output…
 ✓ gc/run — exit 0 in 1.4s
+– feeds/import — skipped: still running from an earlier start
+↗ my-module/products/import — started in the background (pid 4182); its output goes to …/schedule-it.log
 ```
+
+A skipped job is not a failure. `still running from an earlier start` means its lock is held;
+`already started for this minute by another runner` means a second runner, on another
+server or started by hand, got there first.
 
 Most minutes nothing is due, and it prints `No scheduled commands are ready to run.` — that
 is evidence the schedule loaded, not a problem.
 
-**`php craft schedule-it/list`** — every job, its expression, timezone and next due time, the
-disabled ones, and whether the mutex would let `run` start. Runs nothing.
+**`php craft schedule-it/list`** — every job, its expression, timezone and next due time —
+in the job's timezone and in Craft's — whether it runs in turn or in the background, the
+disabled ones, and whether the mutex would let `run` start. Where a job has a description,
+the command is shown beneath it, ready to copy. Runs nothing.
 
 ## What it does for you
 
@@ -147,8 +167,9 @@ Each of these is a way the library, used directly under Craft, fails without say
   absolute, because cron does not guarantee a working directory.
 - **It keeps stderr.** Every job's stdout *and* stderr go to the log file; without that, a
   fatal in a job leaves no trace.
-- **It replays job output to stdout.** See [Servd](#servd) — on a host whose task runner
-  throws its filesystem away, the log file alone is worthless.
+- **It echoes job output to stdout.** See [Servd](#servd) — on a host whose task runner
+  throws its filesystem away, the log file alone is worthless. Output is read from the job's
+  own process as it is written, so two runners sharing a log never print each other's.
 - **It reports exit codes.** The library discards them, so its runner exits 0 whatever
   happened.
 - **It refuses a lock other servers cannot see.** See [Overlap](#overlap).
@@ -157,9 +178,16 @@ Each of these is a way the library, used directly under Craft, fails without say
 
 ## Overlap
 
-Every job takes a lock for as long as it runs, through Craft's `mutex` component, so a job
-still running from the last minute is skipped rather than started twice — and on a host with
-several app servers, only one of them runs it.
+Every job takes a lock through Craft's `mutex` component just before it starts, and releases
+it the moment it ends. A job still running from an earlier minute is skipped rather than
+started twice, and holds back nothing but itself: the other jobs due that minute run as
+normal.
+
+With the lock held, the runner also records the minute it started the job in Craft's
+`cache`. A second runner in the same minute — another server, or a run started by hand —
+finds the job already started and skips it, even if the first has already finished. That is
+only as shared as the cache: Craft's default file cache belongs to one server, so on several
+servers give the cache a shared driver (Redis, or the database) as well as the mutex.
 
 That only works if the lock is somewhere every server can see. Craft 5's default is the
 database (`yii\mutex\MysqlMutex` / `PgsqlMutex`), which is. A `FileMutex` is not: it lives on
@@ -167,6 +195,21 @@ one server's disk. The library's own guard tests Craft's wrapper component rathe
 driver inside it, so it never catches this; the plugin checks the driver, and `schedule-it/run`
 refuses to start on a file (or null) mutex. On a host that can never run two servers, set
 `'singleServer' => true` to run anyway.
+
+## Long jobs
+
+Jobs run one after another, so a ten-minute import holds back the jobs listed after it in the
+same minute (never those of later minutes — see [Overlap](#overlap)). Two ways round that:
+
+- **List the long job last.**
+- **Run it in the background**: `->background()`, or `'background' => true`. The runner starts
+  it as its own process, `craft schedule-it/run/job <id> <minute>`, and moves straight on. That
+  process takes the job's lock and records its start as the runner would, and writes the job's
+  output and its `✓`/`✗` line to the log file — not to the runner's output, which has moved on.
+  Its exit code is not the runner's either.
+
+**Not on Servd**, or any host that runs the scheduled task in a container removed when the
+command exits: the background process goes with it. List the long job last there.
 
 ## Servd
 
@@ -181,8 +224,9 @@ Two things specific to Servd:
 - **Servd already runs the queue and the backups.** Do not schedule `queue/*` or `db/backup`.
 - **The log file does not survive.** A scheduled task runs in Servd's task runner, not the web
   container, with a filesystem that goes when the task ends; Servd collects stdout only. That
-  is why the runner replays each job's output: read it in **Servd's log for the task**, and do
+  is why the runner echoes each job's output: read it in **Servd's log for the task**, and do
   not look for `storage/logs/schedule-it.log` there. Locally the file is the thing to read.
+- **Background jobs do not survive either**, for the same reason. See [Long jobs](#long-jobs).
 
 **Think about staging before adding its task.** Once the entry exists, every job runs there,
 including any that send email. Point staging's mailer somewhere harmless, give those jobs an

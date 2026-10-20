@@ -23,6 +23,10 @@ return [
         // Job::command('gc/run')->dailyAt('03:00'),
         // Job::command('reports/send')->weekdays()->at('08:30'),
 
+        // A shell command, and a long job run as its own process:
+        // Job::exec('bin/geoip-update.sh')->weekly(),
+        // Job::command('my-module/products/import')->hourly()->background(),
+
         // Or the command, arguments included => a cron expression.
         // 'gc/run' => '0 3 * * *',
 

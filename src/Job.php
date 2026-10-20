@@ -10,6 +10,7 @@ use Cron\CronExpression;
  *     Job::command('gc/run')->dailyAt('03:00')
  *     Job::command('reports/send')->weekdays()->at('08:30')
  *     Job::command('feeds/sync')->everyFifteenMinutes()
+ *     Job::exec('bin/geoip-update.sh')->weekly()
  *
  * Each method sets part of an expression, so they compose — frequency first, then days,
  * then time — exactly as Laravel's scheduler does. The result is an ordinary cron
@@ -30,9 +31,10 @@ final class Job
     private ?string $timezone = null;
     private ?string $description = null;
     private bool|string|null $enabled = null;
+    private bool|string|null $background = null;
     private ?string $problem = null;
 
-    private function __construct(private readonly string $command)
+    private function __construct(private readonly string $command, private readonly bool $shell = false)
     {
     }
 
@@ -56,7 +58,7 @@ final class Job
     {
         $job = new self(is_string($arguments[0] ?? null) ? $arguments[0] : '?');
 
-        return $job->fail("there is no Job::{$name}(); a job starts with Job::command('<route>').");
+        return $job->fail("there is no Job::{$name}(); a job starts with Job::command('<route>') or Job::exec('<shell line>').");
     }
 
     /**
@@ -73,6 +75,15 @@ final class Job
     public static function command(string $command): self
     {
         return new self($command);
+    }
+
+    /**
+     * A shell command, run from the project root: a script, a binary, anything that is not
+     * a Craft console route. Its output is logged and echoed like a console job's.
+     */
+    public static function exec(string $line): self
+    {
+        return new self($line, true);
     }
 
     // Raw -----------------------------------------------------------------------------
@@ -317,6 +328,17 @@ final class Job
         return $this;
     }
 
+    /**
+     * Runs the job as its own process, so the jobs after it do not wait for it to finish.
+     * A bool, or a string Craft reads as one.
+     */
+    public function background(bool|string $background = true): self
+    {
+        $this->background = $background;
+
+        return $this;
+    }
+
     public function getExpression(): string
     {
         return implode(' ', $this->fields);
@@ -330,11 +352,12 @@ final class Job
     public function toArray(): array
     {
         return array_filter([
-            'command' => $this->command,
+            $this->shell ? 'exec' : 'command' => $this->command,
             'cron' => $this->getExpression(),
             'timezone' => $this->timezone,
             'description' => $this->description,
             'enabled' => $this->enabled,
+            'background' => $this->background,
         ], fn($value) => $value !== null);
     }
 
