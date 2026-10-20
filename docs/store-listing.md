@@ -39,18 +39,22 @@ repository and missing wherever someone forgot to re-add them.
 
 `Job::command('gc/run')->dailyAt('03:00')` and `->weekdays()->at('08:30')` sit beside plain
 cron expressions, with a description, a timezone or a per-environment switch where you need
-one. `craft schedule-it/list` shows every job, the expression it became and when it is next due.
+one. `Job::exec('bin/geoip-update.sh')` puts a shell command in the same schedule, and
+`->background()` runs a long import as its own process. `craft schedule-it/list` shows every
+job, its command, the expression it became and when it is next due, in UTC and in the site's
+own timezone.
 
 ### Failures are reported, never swallowed
 
 - Jobs run through `craft`, with an absolute path, because cron does not promise a working
   directory.
-- Every job's stdout and stderr go to the log file, and are replayed to the runner's output for
+- Every job's stdout and stderr go to the log file, and are echoed to the runner's output for
   hosts whose task runner throws its filesystem away.
 - `schedule-it/run` reports each job's exit code and exits non-zero if any failed.
 - A misspelt key, a bad expression or an unknown timezone is an error, never a job that
   silently does not run.
-- It refuses a lock that other servers cannot see, so a job never runs twice at once across a
+- Each job is locked only while it runs, so a long job holds back nothing but itself, and it
+  refuses a lock that other servers cannot see, so a job never runs twice at once across a
   cluster.
 
 Console-only: the web app has no route to the runner. Built on
@@ -62,7 +66,8 @@ that library needs under Craft already applied.
 From `_store-screenshots/shots/out/schedule-it/`:
 
 1. `01-config.png` — a schedule in `config/schedule-it.php`, jobs in words beside cron expressions.
-2. `02-list.png` — `craft schedule-it/list`: every job and when it is next due.
+2. `02-list.png` — `craft schedule-it/list`: every job and when it is next due. **Shot on 2.0.1;
+   2.1.0 adds the command row and the local-time and Runs columns — reshoot before submitting.**
 3. `03-run.png` — `craft schedule-it/run`: the jobs that ran and their exit codes.
 
 ## Before submitting

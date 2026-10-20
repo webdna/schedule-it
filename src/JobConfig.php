@@ -11,11 +11,13 @@ use yii\base\InvalidConfigException;
  * cannot read. A misspelt key or a bad expression is an error, never a job that silently
  * does not run: that is the failure a schedule is least likely to be caught in.
  *
- * @phpstan-type JobSpec array{command: string, cron: string, timezone: ?string, description: ?string, enabled: bool}
+ * A job's `command` is a console route; `shell` says it is a shell line instead, from `exec`.
+ *
+ * @phpstan-type JobSpec array{command: string, shell: bool, cron: string, timezone: ?string, description: ?string, enabled: bool, background: bool}
  */
 final class JobConfig
 {
-    public const KEYS = ['command', 'cron', 'timezone', 'description', 'enabled'];
+    public const KEYS = ['command', 'exec', 'cron', 'timezone', 'description', 'enabled', 'background'];
 
     /**
      * @param array<int|string, mixed> $jobs
@@ -53,7 +55,19 @@ final class JobConfig
                 ));
             }
 
-            if (is_string($key)) {
+            $shell = array_key_exists('exec', $job);
+            if ($shell) {
+                if (is_string($key)) {
+                    throw new InvalidConfigException("schedule-it: {$label} is keyed by a console command but sets `exec`. A shell job is a list entry: ['exec' => '…', 'cron' => '…'].");
+                }
+                if (array_key_exists('command', $job)) {
+                    throw new InvalidConfigException("schedule-it: {$label} sets both `command` and `exec`; a job is one or the other.");
+                }
+                $command = $job['exec'];
+                if (!is_string($command) || trim($command) === '') {
+                    throw new InvalidConfigException("schedule-it: {$label} `exec` must be a shell command.");
+                }
+            } elseif (is_string($key)) {
                 if (isset($job['command']) && $job['command'] !== $key) {
                     throw new InvalidConfigException("schedule-it: {$label} also sets a different `command`; use one or the other.");
                 }
@@ -62,7 +76,7 @@ final class JobConfig
                 $command = $job['command'] ?? null;
             }
             if (!is_string($command) || trim($command) === '') {
-                throw new InvalidConfigException("schedule-it: {$label} has no command. Key the job by its command, or set `command`.");
+                throw new InvalidConfigException("schedule-it: {$label} has no command. Key the job by its command, or set `command` (or `exec` for a shell command).");
             }
             $command = trim($command);
             $label = "job “{$command}”";
@@ -81,10 +95,12 @@ final class JobConfig
 
             $normalised[] = [
                 'command' => $command,
+                'shell' => $shell,
                 'cron' => $cron,
                 'timezone' => $timezone,
                 'description' => $description,
-                'enabled' => self::enabled($job['enabled'] ?? true, $label),
+                'enabled' => self::boolean($job['enabled'] ?? true, $label, 'enabled'),
+                'background' => self::boolean($job['background'] ?? false, $label, 'background'),
             ];
         }
 
@@ -110,15 +126,15 @@ final class JobConfig
      *
      * @throws InvalidConfigException
      */
-    private static function enabled(mixed $enabled, string $label): bool
+    private static function boolean(mixed $value, string $label, string $name): bool
     {
-        if (is_bool($enabled)) {
-            return $enabled;
+        if (is_bool($value)) {
+            return $value;
         }
 
-        $parsed = is_string($enabled) ? App::parseBooleanEnv($enabled) : null;
+        $parsed = is_string($value) ? App::parseBooleanEnv($value) : null;
         if ($parsed === null) {
-            throw new InvalidConfigException("schedule-it: {$label} `enabled` must be a bool or an env var that reads as one.");
+            throw new InvalidConfigException("schedule-it: {$label} `{$name}` must be a bool or an env var that reads as one.");
         }
 
         return $parsed;

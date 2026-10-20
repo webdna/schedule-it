@@ -3,6 +3,8 @@
 namespace webdna\scheduleit;
 
 use omnilight\scheduling\Schedule as BaseSchedule;
+use yii\base\Application;
+use yii\caching\CacheInterface;
 
 /**
  * The schedule, with the defaults every job needs already applied.
@@ -33,25 +35,30 @@ class Schedule extends BaseSchedule
      */
     public array $disabled = [];
 
-    private ?OutputReplay $replay = null;
+    /**
+     * Where each job's last start minute is kept (see Event::$cache).
+     */
+    public ?CacheInterface $cache = null;
+
+    /** @var (\Closure(string): void)|null */
+    private ?\Closure $write = null;
 
     /**
-     * Starts replaying job output through `$write`. Everything already in the log file is
-     * behind the high-water mark, so only what this run's jobs write is echoed.
+     * Echoes each job's output through `$write` as the job writes it, besides the log file.
      *
      * @param callable(string): void $write
      */
-    public function startReplay(callable $write): void
+    public function echoOutputTo(callable $write): void
     {
-        $this->replay = new OutputReplay($this->logFile, $write);
+        $this->write = \Closure::fromCallable($write);
     }
 
     /**
      * Adds a console command on a cron expression, with the defaults:
      *
      *  - read in this schedule's timezone (UTC unless configured);
-     *  - never overlapping itself, across servers, through the app's mutex;
-     *  - stdout and stderr appended to the log file, then replayed to the runner's stdout;
+     *  - locked while it runs, across servers, through the app's mutex (see Event);
+     *  - stdout and stderr appended to the log file and echoed to the runner's stdout;
      *  - described by its command, not by the full shell line.
      *
      * Chain anything else the library offers onto the returned event.
@@ -62,25 +69,25 @@ class Schedule extends BaseSchedule
     {
         /** @var Event $event */
         $event = $this->command($command);
+        $event->route = $command;
 
-        $event->cron($cron)
-            ->timezone($this->timezone)
-            ->description($command)
-            ->appendOutputTo(escapeshellarg($this->logFile))
-            // Badly named in the library: this does not discard errors, it appends 2>&1 so
-            // stderr lands in the log beside stdout. Without it a job's fatal leaves no trace.
-            ->omitErrors(true)
-            // Not onOneServer(): its guard tests the Craft wrapper rather than the driver, so
-            // it can never fire. `schedule-it/run` checks the driver itself (MutexCheck) and
-            // refuses to start, which is the only point a refusal is any use.
-            ->withoutOverlapping();
+        return $this->withDefaults($event, $cron, $command);
+    }
 
-        if ($this->replay !== null) {
-            // then() is typed \Closure, so the invokable object has to be wrapped.
-            $event->then(\Closure::fromCallable($this->replay));
-        }
+    /**
+     * Adds a shell command on a cron expression, run from the project root, with the same
+     * defaults as job().
+     *
+     * Wrapped in a subshell so the log redirect covers the whole line: without it,
+     * `a && b >> log` would log only `b`.
+     */
+    public function execJob(string $line, string $cron): Event
+    {
+        /** @var Event $event */
+        $event = $this->exec('(' . $line . ')');
+        $event->shellLine = $line;
 
-        return $event;
+        return $this->withDefaults($event, $cron, $line);
     }
 
     /**
@@ -94,7 +101,35 @@ class Schedule extends BaseSchedule
     public function exec($command)
     {
         $this->_events[] = $event = new Event($this->_mutex, $command);
+        $event->cache = $this->cache;
+        $event->craftScript = $this->cliScriptName;
+        $event->logFile = $this->logFile ?? null;
+        $event->write = $this->write;
 
         return $event;
+    }
+
+    /**
+     * Every job is checked against the same moment, so one that is slow to check cannot
+     * push the rest into the next minute.
+     */
+    public function dueEvents(Application $app)
+    {
+        $now = new \DateTimeImmutable('now');
+
+        foreach ($this->_events as $event) {
+            if ($event instanceof Event) {
+                $event->dueAt = $now;
+            }
+        }
+
+        return parent::dueEvents($app);
+    }
+
+    private function withDefaults(Event $event, string $cron, string $description): Event
+    {
+        return $event->cron($cron)
+            ->timezone($this->timezone)
+            ->description($description);
     }
 }

@@ -14,10 +14,12 @@ class JobConfigTest extends TestCase
     {
         $this->assertSame([[
             'command' => 'gc/run',
+            'shell' => false,
             'cron' => '0 3 * * *',
             'timezone' => null,
             'description' => null,
             'enabled' => true,
+            'background' => false,
         ]], JobConfig::normalise(['gc/run' => '0 3 * * *']));
     }
 
@@ -53,13 +55,28 @@ class JobConfigTest extends TestCase
             Job::command('reports/send')->weekdays()->at('08:30')->timezone('Europe/London')->enabled(false),
         ]);
 
-        $this->assertSame(['command' => 'reports/send', 'cron' => '30 8 * * 1-5', 'timezone' => 'Europe/London', 'description' => null, 'enabled' => false], $jobs[1]);
+        $this->assertSame(['command' => 'reports/send', 'shell' => false, 'cron' => '30 8 * * 1-5', 'timezone' => 'Europe/London', 'description' => null, 'enabled' => false, 'background' => false], $jobs[1]);
     }
 
     public function testAnEnabledStringIsReadAsABoolean(): void
     {
         $this->assertFalse(JobConfig::normalise(['a/b' => ['cron' => '* * * * *', 'enabled' => 'false']])[0]['enabled']);
         $this->assertTrue(JobConfig::normalise(['a/b' => ['cron' => '* * * * *', 'enabled' => '1']])[0]['enabled']);
+    }
+
+    public function testAShellJobIsAListEntryWithExec(): void
+    {
+        $jobs = JobConfig::normalise([
+            ['exec' => 'bin/rotate.sh && echo done', 'cron' => '0 4 * * *', 'background' => true],
+            Job::exec('bin/geoip-update.sh')->weekly()->background('false'),
+        ]);
+
+        $this->assertSame('bin/rotate.sh && echo done', $jobs[0]['command']);
+        $this->assertTrue($jobs[0]['shell']);
+        $this->assertTrue($jobs[0]['background']);
+        $this->assertSame(['bin/geoip-update.sh', true, '0 0 * * 0'], [$jobs[1]['command'], $jobs[1]['shell'], $jobs[1]['cron']]);
+        // A string Craft reads as a boolean, as `enabled` takes.
+        $this->assertFalse($jobs[1]['background']);
     }
 
     /**
@@ -77,6 +94,10 @@ class JobConfigTest extends TestCase
             'bad timezone' => [['gc/run' => ['cron' => '0 3 * * *', 'timezone' => 'BST']], 'not a timezone identifier'],
             'bad enabled' => [['gc/run' => ['cron' => '0 3 * * *', 'enabled' => 'sometimes']], '`enabled` must be'],
             'not a string or array' => [['gc/run' => 3], 'must be a cron expression, an array or a Job'],
+            'exec keyed by a command' => [['gc/run' => ['exec' => 'ls', 'cron' => '0 3 * * *']], 'is keyed by a console command but sets `exec`'],
+            'exec beside command' => [[['command' => 'gc/run', 'exec' => 'ls', 'cron' => '0 3 * * *']], 'both `command` and `exec`'],
+            'empty exec' => [[['exec' => ' ', 'cron' => '0 3 * * *']], '`exec` must be a shell command'],
+            'bad background' => [['gc/run' => ['cron' => '0 3 * * *', 'background' => 'sometimes']], '`background` must be'],
             'job under another command' => [['gc/run' => Job::command('other')->daily()], 'different `command`'],
         ];
     }

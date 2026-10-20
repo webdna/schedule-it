@@ -69,6 +69,11 @@ class JobTest extends TestCase
             'description' => 'Reminders',
             'enabled' => '$SCHEDULE_REMINDERS',
         ], Job::command('mail/send')->dailyAt('08:00')->timezone('Europe/London')->description('Reminders')->enabled('$SCHEDULE_REMINDERS')->toArray());
+
+        $this->assertSame(
+            ['exec' => 'bin/backup.sh', 'cron' => '0 2 * * *', 'background' => true],
+            Job::exec('bin/backup.sh')->dailyAt('02:00')->background()->toArray(),
+        );
     }
 
     /**
@@ -91,6 +96,8 @@ class JobTest extends TestCase
             'misspelt method' => [fn() => Job::command('a/b')->daly(), 'there is no daly() method'],
             // @phpstan-ignore staticMethod.notFound
             'misspelt command()' => [fn() => Job::comand('a/b')->daily(), 'there is no Job::comand()'],
+            // @phpstan-ignore staticMethod.notFound
+            'misspelt exec()' => [fn() => Job::exce('ls')->daily(), "Job::exec('<shell line>')"],
             'the first mistake is the one reported' => [fn() => Job::command('a/b')->at('25:00')->days('mon'), "'25:00'"],
         ];
     }

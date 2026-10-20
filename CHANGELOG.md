@@ -1,5 +1,20 @@
 # Release Notes for Schedule-it
 
+## 2.1.0 - 2026-10-20
+
+### Added
+- `Job::exec('<shell line>')`, or a list entry with `exec` in place of `command`, runs a shell command from the project root with the same log, output, lock and exit-code handling as a console command. ([#2](https://github.com/webdna/schedule-it/issues/2))
+- `->background()`, or `'background' => true`, runs a job as its own process (`schedule-it/run/job`) so the jobs after it do not wait. It takes the job's lock itself and writes its output and result to the log file. ([#1](https://github.com/webdna/schedule-it/issues/1))
+- `schedule-it/list` shows the command beneath a job's description, each job's next run in Craft's timezone as well as its own, and whether it runs in turn or in the background. ([#2](https://github.com/webdna/schedule-it/issues/2))
+
+### Changed
+- Each job's lock is taken just before it runs and released as soon as it ends. It used to be taken for every due job before the first one ran, so one long job held back every other job due with it, and runners in later minutes skipped them. ([#1](https://github.com/webdna/schedule-it/issues/1))
+- The minute a job was started is recorded in Craft's cache, so a second runner in the same minute skips a job the first has already run.
+- `schedule-it/run` reports a skipped job (`– … skipped: …`) instead of leaving it out.
+- Job output is read from the job's process as it is written, so two runners sharing a log file never print each other's output.
+- The library's `withoutOverlapping()` and `onOneServer()` do nothing on a job (every job is already locked), and a `skip()` added in `configure` no longer replaces the lock.
+- Expressions stay in UTC by default.
+
 ## 2.0.1 - 2026-10-19
 
 ### Changed

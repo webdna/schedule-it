@@ -13,7 +13,8 @@ use yii\console\ExitCode;
 use yii\helpers\Console;
 
 /**
- * Shows the schedule: every job, when it is next due, and whether the runner would start.
+ * Shows the schedule: every job and its command, when it is next due in its own timezone and
+ * in Craft's, and whether the runner would start.
  */
 class ListController extends Controller
 {
@@ -35,9 +36,11 @@ class ListController extends Controller
         $driver = MutexCheck::driver(Craft::$app->has('mutex') ? Craft::$app->getMutex() : null);
         $shared = MutexCheck::isShared($driver);
         $driverName = $driver !== null ? get_class($driver) : 'missing';
+        $localZone = Craft::$app->getTimeZone();
 
         $this->stdout('Mutex:    ' . $driverName . ($shared ? " (shared)\n" : " (NOT shared)\n"));
-        $this->stdout("Timezone: {$schedule->timezone}\n");
+        $this->stdout("Timezone: {$schedule->timezone} (Craft's: {$localZone})\n");
+        $this->stdout('Cache:    ' . ($schedule->cache !== null ? get_class($schedule->cache) : 'none') . " (each job's last start, so a second runner in the same minute does not repeat it)\n");
         $this->stdout("Log file: {$schedule->logFile}\n");
         if (!$shared) {
             $schedule->singleServer
@@ -51,10 +54,27 @@ class ListController extends Controller
             $timezone = $event instanceof Event ? ($event->getTimezone() ?? 'UTC') : date_default_timezone_get();
             $next = (new CronExpression($event->getExpression()))
                 ->getNextRunDate(new \DateTime('now', new \DateTimeZone($timezone)));
-            $rows[] = [$event->getSummaryForDisplay(), $event->getExpression(), $timezone, $next->format('D j M H:i'), 'on'];
+            $summary = $event->getSummaryForDisplay();
+            $rows[] = [
+                $summary,
+                $event->getExpression(),
+                $timezone,
+                $next->format('D j M H:i'),
+                $next->setTimezone(new \DateTimeZone($localZone))->format('D j M H:i'),
+                $event instanceof Event && $event->isBackground() ? 'background' : 'in turn',
+                'on',
+            ];
+            // The command is what an operator copies to run the job by hand, so it is shown
+            // whenever the description hides it.
+            if ($event instanceof Event && $summary !== ($event->route ?? $event->shellLine)) {
+                $rows[] = $this->commandRow($event->getCommandForDisplay());
+            }
         }
         foreach ($schedule->disabled as $job) {
-            $rows[] = [$job['description'] ?? $job['command'], $job['cron'], $job['timezone'] ?? $schedule->timezone, '—', 'off'];
+            $rows[] = [$job['description'] ?? $job['command'], $job['cron'], $job['timezone'] ?? $schedule->timezone, '—', '—', $job['background'] ? 'background' : 'in turn', 'off'];
+            if ($job['description'] !== null && $job['description'] !== $job['command']) {
+                $rows[] = $this->commandRow($job['shell'] ? $job['command'] : 'craft ' . $job['command']);
+            }
         }
 
         if ($rows === []) {
@@ -62,8 +82,18 @@ class ListController extends Controller
             return ExitCode::OK;
         }
 
-        $this->table(['Job', 'Cron', 'Timezone', 'Next due', 'Enabled'], $rows);
+        $this->table(['Job', 'Cron', 'Timezone', 'Next due', "In {$localZone}", 'Runs', 'Enabled'], $rows, ['maxSize' => 100]);
 
         return ExitCode::OK;
+    }
+
+    /**
+     * A row holding only the command, beneath its job.
+     *
+     * @return list<string|array<int|string, mixed>>
+     */
+    private function commandRow(string $command): array
+    {
+        return [['  ' . $command, 'format' => [Console::FG_GREY]], '', '', '', '', '', ''];
     }
 }
