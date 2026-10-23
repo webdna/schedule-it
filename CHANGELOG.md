@@ -1,5 +1,10 @@
 # Release Notes for Schedule-it
 
+## 2.1.1 - 2026-10-23
+
+### Changed
+- New plugin icon: a white glyph on a black circle, with a white icon mask for the control panel nav.
+
 ## 2.1.0 - 2026-10-20
 
 ### Added
